@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>霓虹暗棋 | Neon Dark Chess</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--cyan:#00f0ff;--magenta:#ff2d95;--violet:#b026ff;--gold:#ffd700;--dark:#0a0a1a;--red-piece:#ff2d55;--blue-piece:#00f0ff}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--dark);color:#fff;min-height:100vh;overflow-x:hidden;display:flex;flex-direction:column;align-items:center}
+body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at 30% 20%,rgba(176,38,255,0.15),transparent 60%),radial-gradient(ellipse at 70% 80%,rgba(0,240,255,0.1),transparent 60%);pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background-image:linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0}
+h1{font-family:'Orbitron',sans-serif;font-size:clamp(1.5rem,4vw,2.5rem);text-align:center;margin:20px 0 10px;background:linear-gradient(90deg,var(--cyan),var(--magenta),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-shadow:none;position:relative;z-index:1;letter-spacing:2px}
+.subtitle{font-family:'Orbitron',sans-serif;font-size:0.7rem;color:var(--violet);text-align:center;margin-bottom:10px;letter-spacing:4px;position:relative;z-index:1}
+.glass{background:rgba(255,255,255,0.05);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;box-shadow:0 0 30px rgba(176,38,255,0.1)}
+.info-bar{display:flex;justify-content:center;align-items:center;gap:20px;padding:10px 24px;margin-bottom:12px;position:relative;z-index:1;flex-wrap:wrap}
+.turn-indicator{font-size:1.1rem;font-weight:700;padding:6px 20px;border-radius:20px;border:2px solid var(--violet);transition:all 0.3s}
+.turn-indicator.red-turn{border-color:var(--magenta);color:var(--magenta);box-shadow:0 0 15px rgba(255,45,149,0.4)}
+.turn-indicator.black-turn{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 15px rgba(0,240,255,0.4)}
+.turn-indicator.undecided{border-color:var(--violet);color:var(--violet);box-shadow:0 0 15px rgba(176,38,255,0.4)}
+.btn{font-family:'Noto Sans TC',sans-serif;padding:8px 20px;border:2px solid var(--gold);background:transparent;color:var(--gold);border-radius:20px;cursor:pointer;font-size:0.9rem;font-weight:700;transition:all 0.3s;position:relative;z-index:1}
+.btn:hover{background:var(--gold);color:var(--dark);box-shadow:0 0 20px rgba(255,215,0,0.5)}
+.game-area{display:flex;flex-direction:column;align-items:center;gap:12px;position:relative;z-index:1;padding:0 10px}
+.captured-area{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;width:100%;max-width:560px}
+.captured-box{padding:8px 12px;border-radius:12px;min-width:200px;flex:1}
+.captured-box h3{font-family:'Orbitron',sans-serif;font-size:0.65rem;margin-bottom:6px;letter-spacing:2px}
+.captured-box.red-box h3{color:var(--magenta)}
+.captured-box.blue-box h3{color:var(--cyan)}
+.captured-pieces{display:flex;flex-wrap:wrap;gap:4px;min-height:30px}
+.captured-piece{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:900;animation:capturePop 0.3s ease}
+.captured-piece.red{background:rgba(255,45,85,0.2);border:1px solid var(--magenta);color:var(--magenta)}
+.captured-piece.blue{background:rgba(0,240,255,0.2);border:1px solid var(--cyan);color:var(--cyan)}
+@keyframes capturePop{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:12px;border-radius:16px;width:min(95vw,340px)}
+.cell{width:clamp(55px,18vw,75px);height:clamp(55px,18vw,75px);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all 0.2s;border:2px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03)}
+.cell:hover{border-color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.06)}
+.cell.selected{border-color:var(--gold)!important;box-shadow:0 0 20px rgba(255,215,0,0.5);animation:selectedPulse 1.5s infinite}
+@keyframes selectedPulse{0%,100%{box-shadow:0 0 15px rgba(255,215,0,0.4)}50%{box-shadow:0 0 30px rgba(255,215,0,0.7)}}
+.cell.valid-move{border-color:var(--gold);box-shadow:0 0 12px rgba(255,215,0,0.3)}
+.cell.valid-move::after{content:'';position:absolute;width:12px;height:12px;border-radius:50%;background:rgba(255,215,0,0.4);animation:moveDot 1s infinite}
+@keyframes moveDot{0%,100%{opacity:0.4;transform:scale(1)}50%{opacity:0.8;transform:scale(1.3)}}
+.piece{width:100%;height:100%;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:clamp(1.3rem,4vw,1.8rem);transition:all 0.3s;position:relative;user-select:none}
+.piece.facedown{background:linear-gradient(135deg,rgba(176,38,255,0.3),rgba(176,38,255,0.15));border:2px solid rgba(176,38,255,0.5);color:rgba(176,38,255,0.7);font-size:clamp(1.1rem,3.5vw,1.5rem);text-shadow:0 0 10px rgba(176,38,255,0.5);box-shadow:inset 0 0 20px rgba(176,38,255,0.1)}
+.piece.facedown::before{content:'';position:absolute;width:60%;height:60%;border:2px solid rgba(176,38,255,0.25);border-radius:4px;transform:rotate(45deg)}
+.piece.red{background:linear-gradient(135deg,rgba(255,45,85,0.25),rgba(255,45,149,0.15));border:2px solid rgba(255,45,149,0.6);color:var(--magenta);text-shadow:0 0 12px rgba(255,45,149,0.6);box-shadow:inset 0 0 15px rgba(255,45,149,0.1)}
+.piece.blue{background:linear-gradient(135deg,rgba(0,240,255,0.25),rgba(0,240,255,0.1));border:2px solid rgba(0,240,255,0.6);color:var(--cyan);text-shadow:0 0 12px rgba(0,240,255,0.6);box-shadow:inset 0 0 15px rgba(0,240,255,0.1)}
+.piece.flip-anim{animation:flipCard 0.5s ease}
+@keyframes flipCard{0%{transform:scaleX(1)}50%{transform:scaleX(0)}100%{transform:scaleX(1)}}
+.piece.capture-anim{animation:captureShake 0.4s ease}
+@keyframes captureShake{0%,100%{transform:translate(0)}20%{transform:translate(-4px,2px)}40%{transform:translate(4px,-2px)}60%{transform:translate(-2px,4px)}80%{transform:translate(2px,-4px)}}
+.piece.move-anim{animation:moveGlow 0.3s ease}
+@keyframes moveGlow{0%{opacity:0.5;transform:scale(0.8)}100%{opacity:1;transform:scale(1)}}
+.victory-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,10,26,0.92);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:100}
+.victory-overlay.show{display:flex}
+.victory-text{font-family:'Orbitron',sans-serif;font-size:clamp(2rem,6vw,3.5rem);font-weight:900;margin-bottom:20px;animation:victoryGlow 2s infinite}
+.victory-text.red-win{background:linear-gradient(90deg,var(--magenta),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.victory-text.blue-win{background:linear-gradient(90deg,var(--cyan),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+@keyframes victoryGlow{0%,100%{filter:brightness(1)}50%{filter:brightness(1.3)}}
+.victory-sub{font-size:1.2rem;margin-bottom:30px;color:var(--violet)}
+canvas#particles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99}
+.status-msg{font-size:0.85rem;color:var(--violet);min-height:1.2em;text-align:center;position:relative;z-index:1;margin-bottom:5px}
+</style>
+</head>
+<body>
+<h1>霓虹暗棋</h1>
+<div class="subtitle">NEON DARK CHESS</div>
+<div class="info-bar glass">
+  <div class="turn-indicator undecided" id="turnIndicator">翻棋決定顏色</div>
+  <button class="btn" onclick="restartGame()">重新開始</button>
+</div>
+<div class="status-msg" id="statusMsg"></div>
+<div class="game-area">
+  <div class="captured-area">
+    <div class="captured-box glass red-box">
+      <h3>紅方被吃</h3>
+      <div class="captured-pieces" id="capturedRed"></div>
+    </div>
+    <div class="captured-box glass blue-box">
+      <h3>黑方被吃</h3>
+      <div class="captured-pieces" id="capturedBlue"></div>
+    </div>
+  </div>
+  <div class="board glass" id="board"></div>
+</div>
+<div class="victory-overlay" id="victoryOverlay">
+  <canvas id="particles"></canvas>
+  <div class="victory-text" id="victoryText"></div>
+  <div class="victory-sub" id="victorySub"></div>
+  <button class="btn" onclick="restartGame()" style="font-size:1.1rem;padding:12px 32px">再來一局</button>
+</div>
+
+<script>
+// --- Audio ---
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function ensureAudio(){if(!audioCtx)audioCtx=new AudioCtx()}
+function playTone(freq,dur,type,vol){
+  ensureAudio();
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type=type||'sine';o.frequency.value=freq;
+  g.gain.setValueAtTime(vol||0.15,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
+  o.connect(g);g.connect(audioCtx.destination);
+  o.start();o.stop(audioCtx.currentTime+dur);
+}
+function sfxFlip(){playTone(800,0.15,'sine',0.12);setTimeout(()=>playTone(1200,0.1,'sine',0.1),80)}
+function sfxMove(){playTone(500,0.1,'triangle',0.08)}
+function sfxCapture(){playTone(200,0.3,'sawtooth',0.12);setTimeout(()=>playTone(150,0.2,'sawtooth',0.1),100)}
+function sfxVictory(){[0,200,400,600].forEach((d,i)=>setTimeout(()=>playTone([523,659,784,1047][i],0.4,'sine',0.15),d))}
+function sfxError(){playTone(200,0.2,'square',0.08)}
+
+// --- Game State ---
+const RANKS={GENERAL:7,ADVISOR:6,ELEPHANT:5,CHARIOT:4,HORSE:3,CANNON:2,SOLDIER:1};
+const RED_PIECES=[
+  {name:'帥',rank:RANKS.GENERAL,side:'red'},
+  {name:'仕',rank:RANKS.ADVISOR,side:'red'},{name:'仕',rank:RANKS.ADVISOR,side:'red'},
+  {name:'相',rank:RANKS.ELEPHANT,side:'red'},{name:'相',rank:RANKS.ELEPHANT,side:'red'},
+  {name:'車',rank:RANKS.CHARIOT,side:'red'},{name:'車',rank:RANKS.CHARIOT,side:'red'},
+  {name:'馬',rank:RANKS.HORSE,side:'red'},{name:'馬',rank:RANKS.HORSE,side:'red'},
+  {name:'炮',rank:RANKS.CANNON,side:'red'},{name:'炮',rank:RANKS.CANNON,side:'red'},
+  {name:'兵',rank:RANKS.SOLDIER,side:'red'},{name:'兵',rank:RANKS.SOLDIER,side:'red'},
+  {name:'兵',rank:RANKS.SOLDIER,side:'red'},{name:'兵',rank:RANKS.SOLDIER,side:'red'},
+  {name:'兵',rank:RANKS.SOLDIER,side:'red'}
+];
+const BLACK_PIECES=[
+  {name:'將',rank:RANKS.GENERAL,side:'black'},
+  {name:'士',rank:RANKS.ADVISOR,side:'black'},{name:'士',rank:RANKS.ADVISOR,side:'black'},
+  {name:'象',rank:RANKS.ELEPHANT,side:'black'},{name:'象',rank:RANKS.ELEPHANT,side:'black'},
+  {name:'車',rank:RANKS.CHARIOT,side:'black'},{name:'車',rank:RANKS.CHARIOT,side:'black'},
+  {name:'馬',rank:RANKS.HORSE,side:'black'},{name:'馬',rank:RANKS.HORSE,side:'black'},
+  {name:'炮',rank:RANKS.CANNON,side:'black'},{name:'炮',rank:RANKS.CANNON,side:'black'},
+  {name:'卒',rank:RANKS.SOLDIER,side:'black'},{name:'卒',rank:RANKS.SOLDIER,side:'black'},
+  {name:'卒',rank:RANKS.SOLDIER,side:'black'},{name:'卒',rank:RANKS.SOLDIER,side:'black'},
+  {name:'卒',rank:RANKS.SOLDIER,side:'black'}
+];
+
+let board=[];// 8 rows x 4 cols, each cell: {piece,faceUp} or null
+let currentTurn='none';// 'red','black','none'
+let player1Side=null;// side of player1 (first flipper)
+let player2Side=null;
+let selectedCell=null;
+let capturedRed=[];
+let capturedBlack=[];
+let gameOver=false;
+
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]}return arr}
+
+function initBoard(){
+  const all=shuffle([...RED_PIECES,...BLACK_PIECES].map(p=>({...p})));
+  board=[];
+  for(let r=0;r<8;r++){
+    board[r]=[];
+    for(let c=0;c<4;c++){
+      board[r][c]={piece:all[r*4+c],faceUp:false};
+    }
+  }
+  currentTurn='none';player1Side=null;player2Side=null;
+  selectedCell=null;capturedRed=[];capturedBlack=[];gameOver=false;
+}
+
+function isAdj(r1,c1,r2,c2){return Math.abs(r1-r2)+Math.abs(c1-c2)===1}
+
+function canCapture(attacker,defender){
+  if(attacker.side===defender.side)return false;
+  // Cannon handled separately
+  if(attacker.rank===RANKS.CANNON)return false;
+  // Soldier can capture General
+  if(attacker.rank===RANKS.SOLDIER&&defender.rank===RANKS.GENERAL)return true;
+  // General cannot capture Soldier
+  if(attacker.rank===RANKS.GENERAL&&defender.rank===RANKS.SOLDIER)return false;
+  return attacker.rank>=defender.rank;
+}
+
+function cannonCapture(r1,c1,r2,c2){
+  // Must be same row or same col
+  if(r1!==r2&&c1!==c2)return false;
+  let count=0;
+  if(r1===r2){
+    const minC=Math.min(c1,c2),maxC=Math.max(c1,c2);
+    for(let c=minC+1;c<maxC;c++){if(board[r1][c])count++}
+  }else{
+    const minR=Math.min(r1,r2),maxR=Math.max(r1,r2);
+    for(let r=minR+1;r<maxR;r++){if(board[r][c1])count++}
+  }
+  return count===1;
+}
+
+function getValidMoves(r,c){
+  const cell=board[r][c];
+  if(!cell||!cell.faceUp)return[];
+  const p=cell.piece;
+  const moves=[];
+  // Adjacent moves
+  const dirs=[[-1,0],[1,0],[0,-1],[0,1]];
+  for(const[dr,dc]of dirs){
+    const nr=r+dr,nc=c+dc;
+    if(nr<0||nr>=8||nc<0||nc>=4)continue;
+    const target=board[nr][nc];
+    if(!target){moves.push({r:nr,c:nc,type:'move'});continue}
+    if(!target.faceUp)continue;// can't move onto facedown
+    if(p.rank!==RANKS.CANNON&&canCapture(p,target.piece)){
+      moves.push({r:nr,c:nc,type:'capture'});
+    }
+  }
+  // Cannon jump capture
+  if(p.rank===RANKS.CANNON){
+    for(const[dr,dc]of dirs){
+      let nr=r+dr,nc=c+dc,jumped=0;
+      while(nr>=0&&nr<8&&nc>=0&&nc<4){
+        const t=board[nr][nc];
+        if(t){
+          jumped++;
+          if(jumped===2){
+            if(t.faceUp&&t.piece.side!==p.side){
+              moves.push({r:nr,c:nc,type:'capture'});
+            }
+            break;
+          }
+        }
+        nr+=dr;nc+=dc;
+      }
+    }
+  }
+  return moves;
+}
+
+function switchTurn(){
+  if(currentTurn==='red')currentTurn='black';
+  else currentTurn='red';
+}
+
+function checkVictory(){
+  let redAlive=false,blackAlive=false;
+  for(let r=0;r<8;r++)for(let c=0;c<4;c++){
+    const cell=board[r][c];
+    if(cell){
+      if(cell.piece.side==='red')redAlive=true;
+      if(cell.piece.side==='black')blackAlive=true;
+    }
+  }
+  if(!redAlive){showVictory('black');return true}
+  if(!blackAlive){showVictory('red');return true}
+  // Check if current player has any possible action
+  let hasAction=false;
+  for(let r=0;r<8;r++)for(let c=0;c<4;c++){
+    const cell=board[r][c];
+    if(!cell)continue;
+    if(!cell.faceUp){hasAction=true;break}
+    if(cell.piece.side===currentTurn&&getValidMoves(r,c).length>0){hasAction=true;break}
+  }
+  if(!hasAction){
+    showVictory(currentTurn==='red'?'black':'red');return true;
+  }
+  return false;
+}
+
+// --- Rendering ---
+function render(){
+  const boardEl=document.getElementById('board');
+  boardEl.innerHTML='';
+  for(let r=0;r<8;r++){
+    for(let c=0;c<4;c++){
+      const cellEl=document.createElement('div');
+      cellEl.className='cell';
+      cellEl.dataset.r=r;cellEl.dataset.c=c;
+      const cell=board[r][c];
+      if(selectedCell){
+        const vm=getValidMoves(selectedCell.r,selectedCell.c);
+        if(vm.some(m=>m.r===r&&m.c===c))cellEl.classList.add('valid-move');
+        if(selectedCell.r===r&&selectedCell.c===c)cellEl.classList.add('selected');
+      }
+      if(cell){
+        const pieceEl=document.createElement('div');
+        pieceEl.className='piece';
+        if(!cell.faceUp){
+          pieceEl.classList.add('facedown');
+          pieceEl.textContent='?';
+        }else{
+          pieceEl.classList.add(cell.piece.side==='red'?'red':'blue');
+          pieceEl.textContent=cell.piece.name;
+        }
+        if(cell._anim){pieceEl.classList.add(cell._anim);cell._anim=null}
+        cellEl.appendChild(pieceEl);
+      }
+      cellEl.addEventListener('click',()=>onCellClick(r,c));
+      boardEl.appendChild(cellEl);
+    }
+  }
+  // Turn indicator
+  const ti=document.getElementById('turnIndicator');
+  if(currentTurn==='none'){
+    ti.textContent='翻棋決定顏色';
+    ti.className='turn-indicator undecided';
+  }else if(currentTurn==='red'){
+    ti.textContent='紅方回合';
+    ti.className='turn-indicator red-turn';
+  }else{
+    ti.textContent='黑方回合';
+    ti.className='turn-indicator black-turn';
+  }
+  // Captured
+  renderCaptured();
+}
+
+function renderCaptured(){
+  const rEl=document.getElementById('capturedRed');
+  const bEl=document.getElementById('capturedBlue');
+  rEl.innerHTML='';bEl.innerHTML='';
+  capturedRed.forEach(p=>{
+    const d=document.createElement('div');
+    d.className='captured-piece red';d.textContent=p.name;rEl.appendChild(d);
+  });
+  capturedBlack.forEach(p=>{
+    const d=document.createElement('div');
+    d.className='captured-piece blue';d.textContent=p.name;bEl.appendChild(d);
+  });
+}
+
+function setStatus(msg){document.getElementById('statusMsg').textContent=msg}
+
+function onCellClick(r,c){
+  if(gameOver)return;
+  const cell=board[r][c];
+  
+  // If a piece is selected, try action on target
+  if(selectedCell){
+    const sr=selectedCell.r,sc=selectedCell.c;
+    if(sr===r&&sc===c){selectedCell=null;render();return}// deselect
+    const vm=getValidMoves(sr,sc);
+    const move=vm.find(m=>m.r===r&&m.c===c);
+    if(move){
+      if(move.type==='move'){
+        board[r][c]={piece:board[sr][sc].piece,faceUp:true,_anim:'move-anim'};
+        board[sr][sc]=null;
+        sfxMove();
+      }else{
+        const captured=board[r][c].piece;
+        if(captured.side==='red')capturedRed.push(captured);
+        else capturedBlack.push(captured);
+        board[r][c]={piece:board[sr][sc].piece,faceUp:true,_anim:'capture-anim'};
+        board[sr][sc]=null;
+        sfxCapture();
+      }
+      selectedCell=null;
+      switchTurn();
+      render();
+      checkVictory();
+      return;
+    }
+    // Clicking another own piece? Select it instead
+    if(cell&&cell.faceUp&&cell.piece.side===currentTurn){
+      selectedCell={r,c};render();return;
+    }
+    // Clicking facedown? flip it
+    if(cell&&!cell.faceUp){
+      selectedCell=null;
+      doFlip(r,c);
+      return;
+    }
+    sfxError();
+    selectedCell=null;render();
+    return;
+  }
+
+  // No selection yet
+  if(!cell)return;
+
+  // Flip facedown piece
+  if(!cell.faceUp){
+    doFlip(r,c);
+    return;
+  }
+
+  // Select own faceup piece
+  if(currentTurn!=='none'&&cell.piece.side===currentTurn){
+    selectedCell={r,c};render();return;
+  }
+  // Before sides decided, can't select
+  if(currentTurn==='none'){setStatus('請先翻開一顆棋子');return}
+  sfxError();
+  setStatus('這不是你的棋子');
+}
+
+function doFlip(r,c){
+  const cell=board[r][c];
+  if(!cell||cell.faceUp)return;
+  cell.faceUp=true;
+  cell._anim='flip-anim';
+  sfxFlip();
+  // First flip decides sides
+  if(currentTurn==='none'){
+    player1Side=cell.piece.side;
+    player2Side=cell.piece.side==='red'?'black':'red';
+    currentTurn=player2Side;// after flip, other player's turn
+    setStatus('玩家一是'+(player1Side==='red'?'紅方':'黑方')+'！');
+  }else{
+    switchTurn();
+  }
+  render();
+  checkVictory();
+}
+
+// --- Victory & Particles ---
+let particleAnim=null;
+function showVictory(winner){
+  gameOver=true;
+  sfxVictory();
+  const overlay=document.getElementById('victoryOverlay');
+  const vt=document.getElementById('victoryText');
+  const vs=document.getElementById('victorySub');
+  vt.textContent=(winner==='red'?'紅方':'黑方')+'勝利！';
+  vt.className='victory-text '+(winner==='red'?'red-win':'blue-win');
+  vs.textContent='恭喜獲勝！';
+  overlay.classList.add('show');
+  startParticles(winner);
+}
+
+function startParticles(winner){
+  const canvas=document.getElementById('particles');
+  const ctx=canvas.getContext('2d');
+  canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+  const colors=winner==='red'?['#ff2d95','#ff2d55','#ffd700','#b026ff']:['#00f0ff','#00c8ff','#ffd700','#b026ff'];
+  const pts=[];
+  for(let i=0;i<120;i++){
+    pts.push({x:canvas.width/2,y:canvas.height/2,vx:(Math.random()-0.5)*12,vy:(Math.random()-0.5)*12-4,
+      size:Math.random()*4+2,color:colors[Math.floor(Math.random()*colors.length)],life:1,decay:Math.random()*0.015+0.005});
+  }
+  if(particleAnim)cancelAnimationFrame(particleAnim);
+  function animate(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    let alive=false;
+    pts.forEach(p=>{
+      if(p.life<=0)return;alive=true;
+      p.x+=p.vx;p.y+=p.vy;p.vy+=0.15;p.life-=p.decay;
+      ctx.globalAlpha=p.life;ctx.fillStyle=p.color;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
+    });
+    ctx.globalAlpha=1;
+    if(alive)particleAnim=requestAnimationFrame(animate);
+  }
+  animate();
+}
+
+function restartGame(){
+  document.getElementById('victoryOverlay').classList.remove('show');
+  if(particleAnim){cancelAnimationFrame(particleAnim);particleAnim=null;
+    const c=document.getElementById('particles');c.getContext('2d').clearRect(0,0,c.width,c.height)}
+  selectedCell=null;
+  setStatus('');
+  initBoard();render();
+}
+
+// --- Init ---
+initBoard();render();
+</script>
+</body>
+</html>
