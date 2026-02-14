@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>霓虹骰盅 — NEON SIC BO</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cyan:#00f0ff; --magenta:#ff2d95; --violet:#b026ff;
+            --gold:#ffd700; --dark:#0a0a1a; --glass:rgba(255,255,255,.04);
+            --radius:16px;
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{
+            font-family:'Noto Sans TC',sans-serif;
+            background:var(--dark);color:#e0e0f0;
+            min-height:100vh;display:flex;flex-direction:column;
+            align-items:center;padding:16px;overflow-x:hidden;
+        }
+        body::before{
+            content:'';position:fixed;inset:0;
+            background:
+                radial-gradient(ellipse 600px 400px at 25% 25%,rgba(0,240,255,.06) 0%,transparent 70%),
+                radial-gradient(ellipse 500px 500px at 75% 75%,rgba(255,45,149,.05) 0%,transparent 70%);
+            z-index:0;
+        }
+        body::after{
+            content:'';position:fixed;inset:0;
+            background-image:linear-gradient(rgba(0,240,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,240,255,.025) 1px,transparent 1px);
+            background-size:60px 60px;z-index:0;pointer-events:none;
+        }
+        .container{max-width:520px;width:100%;position:relative;z-index:1}
+
+        h1{
+            font-family:'Orbitron',sans-serif;font-weight:900;font-size:1.8rem;
+            letter-spacing:4px;text-align:center;
+            background:linear-gradient(135deg,var(--cyan),var(--magenta));
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+            background-clip:text;filter:drop-shadow(0 0 20px rgba(0,240,255,.3));
+            text-transform:uppercase;
+        }
+        .subtitle{
+            font-family:'Orbitron',sans-serif;font-size:.6rem;letter-spacing:5px;
+            text-align:center;color:rgba(255,255,255,.3);margin:4px 0 14px;text-transform:uppercase;
+        }
+
+        /* Credits bar */
+        .credits-bar{
+            display:flex;justify-content:space-between;align-items:center;
+            background:var(--glass);border:1px solid rgba(255,255,255,.06);
+            border-radius:12px;padding:10px 18px;margin-bottom:14px;
+            backdrop-filter:blur(20px);
+        }
+        .cred-label{font-family:'Orbitron',sans-serif;font-size:.55rem;letter-spacing:2px;color:rgba(255,255,255,.35);text-transform:uppercase}
+        .cred-value{font-family:'Orbitron',sans-serif;font-size:1.4rem;font-weight:700;color:var(--gold);text-shadow:0 0 10px rgba(255,215,0,.3)}
+        .win-msg{font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;color:var(--cyan);opacity:0;transition:opacity .3s}
+        .win-msg.show{opacity:1}
+
+        /* Dice area */
+        .dice-stage{
+            background:linear-gradient(180deg,#12122e,#0a0a1e);
+            border:1.5px solid rgba(0,240,255,.12);border-radius:20px;
+            padding:20px;margin-bottom:14px;position:relative;
+            box-shadow:0 0 40px rgba(0,240,255,.06),inset 0 0 60px rgba(0,0,0,.5);
+        }
+        .dice-stage::before{
+            content:'';position:absolute;top:0;left:0;right:0;height:1px;
+            background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+        }
+
+        /* Dome */
+        .dome-area{
+            display:flex;justify-content:center;align-items:center;
+            height:160px;position:relative;
+        }
+        .dome{
+            width:160px;height:120px;
+            background:radial-gradient(ellipse at 40% 30%,rgba(255,255,255,.08),rgba(255,255,255,.02) 60%,transparent);
+            border:2px solid rgba(255,255,255,.08);
+            border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;
+            position:absolute;z-index:5;
+            transition:transform .6s cubic-bezier(.4,0,.2,1),opacity .4s;
+            box-shadow:0 10px 30px rgba(0,0,0,.5);
+        }
+        .dome.lifted{
+            transform:translateY(-140px) scale(.8);opacity:0;
+        }
+
+        .dice-row{
+            display:flex;gap:16px;justify-content:center;align-items:center;
+            position:relative;z-index:1;
+        }
+
+        /* 3D Dice */
+        .die-container{
+            width:60px;height:60px;perspective:300px;
+        }
+        .die{
+            width:100%;height:100%;position:relative;
+            transform-style:preserve-3d;
+            transition:transform 0s;
+        }
+        .die.rolling{
+            animation:diceRoll 1.5s ease-out;
+        }
+        @keyframes diceRoll{
+            0%{transform:rotateX(0) rotateY(0) rotateZ(0)}
+            20%{transform:rotateX(360deg) rotateY(180deg) rotateZ(90deg)}
+            40%{transform:rotateX(720deg) rotateY(360deg) rotateZ(180deg)}
+            60%{transform:rotateX(1080deg) rotateY(540deg) rotateZ(270deg)}
+            80%{transform:rotateX(1300deg) rotateY(650deg) rotateZ(320deg)}
+            100%{transform:rotateX(var(--rx)) rotateY(var(--ry)) rotateZ(0deg)}
+        }
+
+        .die-face{
+            position:absolute;width:60px;height:60px;
+            background:linear-gradient(135deg,#1e1e3a,#14142a);
+            border:1.5px solid rgba(0,240,255,.2);border-radius:10px;
+            display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+            padding:8px;gap:4px;
+            box-shadow:inset 0 0 15px rgba(0,240,255,.05);
+        }
+        .dot{
+            width:10px;height:10px;border-radius:50%;
+            background:var(--cyan);
+            box-shadow:0 0 6px rgba(0,240,255,.6);
+        }
+        /* Face positions */
+        .face-1{transform:rotateY(0deg) translateZ(30px)}
+        .face-2{transform:rotateY(180deg) translateZ(30px)}
+        .face-3{transform:rotateY(-90deg) translateZ(30px)}
+        .face-4{transform:rotateY(90deg) translateZ(30px)}
+        .face-5{transform:rotateX(90deg) translateZ(30px)}
+        .face-6{transform:rotateX(-90deg) translateZ(30px)}
+
+        /* Dot layouts */
+        .dots-1{display:grid;grid-template:1fr/1fr;place-items:center}
+        .dots-2{display:grid;grid-template:1fr 1fr/1fr;place-items:center}
+        .dots-2 .dot:first-child{justify-self:start}
+        .dots-2 .dot:last-child{justify-self:end}
+        .dots-3{display:grid;grid-template:1fr 1fr 1fr/1fr;place-items:center}
+        .dots-3 .dot:first-child{justify-self:start}
+        .dots-3 .dot:last-child{justify-self:end}
+        .dots-4{display:grid;grid-template:1fr 1fr/1fr 1fr;place-items:center}
+        .dots-5{display:grid;grid-template:1fr 1fr 1fr/1fr 1fr;place-items:center}
+        .dots-5 .dot:nth-child(3){grid-column:1/3}
+        .dots-6{display:grid;grid-template:1fr 1fr 1fr/1fr 1fr;place-items:center}
+
+        /* Result display */
+        .result-display{
+            text-align:center;margin:12px 0 0;
+            font-family:'Orbitron',sans-serif;font-size:1rem;
+            letter-spacing:2px;min-height:28px;
+        }
+        .result-total{color:var(--cyan);font-weight:700;font-size:1.4rem}
+
+        /* Betting board */
+        .bet-board{
+            display:grid;grid-template-columns:1fr 1fr;gap:8px;
+            margin-bottom:14px;
+        }
+        .bet-cell{
+            background:var(--glass);border:1.5px solid rgba(255,255,255,.06);
+            border-radius:12px;padding:12px;text-align:center;
+            cursor:pointer;transition:all .3s;backdrop-filter:blur(10px);
+            position:relative;
+        }
+        .bet-cell:hover{border-color:rgba(0,240,255,.3)}
+        .bet-cell.selected{
+            border-color:var(--cyan);background:rgba(0,240,255,.08);
+            box-shadow:0 0 20px rgba(0,240,255,.15);
+        }
+        .bet-cell.win-cell{
+            border-color:var(--gold)!important;
+            box-shadow:0 0 25px rgba(255,215,0,.3)!important;
+            animation:cellWin .5s ease-out;
+        }
+        @keyframes cellWin{50%{transform:scale(1.05)}}
+        .bet-cell-name{
+            font-family:'Orbitron',sans-serif;font-size:.7rem;
+            letter-spacing:2px;color:rgba(255,255,255,.5);text-transform:uppercase;
+        }
+        .bet-cell-desc{font-size:.85rem;margin:4px 0;color:#fff}
+        .bet-cell-odds{
+            font-family:'Orbitron',sans-serif;font-size:.6rem;
+            color:var(--gold);letter-spacing:1px;
+        }
+        .bet-cell-amount{
+            position:absolute;top:6px;right:8px;
+            font-family:'Orbitron',sans-serif;font-size:.55rem;
+            color:var(--cyan);opacity:0;transition:opacity .3s;
+        }
+        .bet-cell.selected .bet-cell-amount{opacity:1}
+
+        .bet-cell.full-width{grid-column:1/3}
+
+        /* Triples row */
+        .triples-row{
+            display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+            margin-bottom:14px;
+        }
+        .triple-cell{
+            background:var(--glass);border:1.5px solid rgba(255,255,255,.06);
+            border-radius:12px;padding:10px;text-align:center;
+            cursor:pointer;transition:all .3s;backdrop-filter:blur(10px);
+        }
+        .triple-cell:hover{border-color:rgba(176,38,255,.3)}
+        .triple-cell.selected{
+            border-color:var(--violet);background:rgba(176,38,255,.08);
+            box-shadow:0 0 15px rgba(176,38,255,.2);
+        }
+        .triple-cell.win-cell{
+            border-color:var(--gold)!important;
+            box-shadow:0 0 25px rgba(255,215,0,.3)!important;
+        }
+        .triple-cell-label{font-size:1.2rem}
+        .triple-cell-odds{font-family:'Orbitron',sans-serif;font-size:.5rem;color:var(--gold)}
+
+        /* Controls */
+        .controls{display:flex;flex-direction:column;gap:10px;align-items:center;margin-bottom:14px}
+        .bet-row{display:flex;align-items:center;gap:8px}
+        .bet-label{font-family:'Orbitron',sans-serif;font-size:.55rem;letter-spacing:2px;color:rgba(255,255,255,.35);text-transform:uppercase}
+        .bet-buttons{display:flex;gap:6px}
+        .chip-btn{
+            font-family:'Orbitron',sans-serif;font-size:.6rem;padding:8px 14px;
+            border:1px solid rgba(255,255,255,.1);background:var(--glass);
+            color:rgba(255,255,255,.5);border-radius:100px;cursor:pointer;transition:all .3s;
+        }
+        .chip-btn:hover{border-color:var(--gold);color:var(--gold)}
+        .chip-btn.active{border-color:var(--gold);color:var(--gold);background:rgba(255,215,0,.1);box-shadow:0 0 12px rgba(255,215,0,.2)}
+
+        .action-row{display:flex;gap:10px;align-items:center}
+        .roll-btn{
+            font-family:'Orbitron',sans-serif;font-size:.75rem;font-weight:700;
+            letter-spacing:3px;text-transform:uppercase;padding:14px 44px;
+            border:none;border-radius:100px;
+            background:linear-gradient(135deg,var(--cyan),var(--magenta));
+            color:#fff;cursor:pointer;box-shadow:0 0 30px rgba(0,240,255,.3);
+            transition:all .3s;position:relative;overflow:hidden;
+        }
+        .roll-btn:hover{transform:translateY(-2px);box-shadow:0 0 40px rgba(0,240,255,.5)}
+        .roll-btn:active{transform:scale(.97)}
+        .roll-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+
+        .clear-btn{
+            font-family:'Orbitron',sans-serif;font-size:.6rem;letter-spacing:1px;
+            padding:14px 18px;border:1px solid rgba(255,255,255,.1);
+            background:var(--glass);color:rgba(255,255,255,.4);
+            border-radius:100px;cursor:pointer;transition:all .3s;
+        }
+        .clear-btn:hover{border-color:var(--magenta);color:var(--magenta)}
+
+        /* History */
+        .history{
+            background:var(--glass);border:1px solid rgba(255,255,255,.06);
+            border-radius:12px;padding:12px;backdrop-filter:blur(20px);
+            max-height:160px;overflow-y:auto;display:none;
+        }
+        .history.show{display:block}
+        .history-title{font-family:'Orbitron',sans-serif;font-size:.55rem;letter-spacing:2px;color:rgba(255,255,255,.3);margin-bottom:8px;text-transform:uppercase}
+        .history-entry{display:flex;justify-content:space-between;padding:3px 0;font-size:.8rem;border-bottom:1px solid rgba(255,255,255,.02)}
+        .history-entry:last-child{border-bottom:none}
+        .hist-dice{letter-spacing:2px}
+        .hist-win{font-family:'Orbitron',sans-serif;font-size:.65rem;font-weight:700}
+        .hist-win.pos{color:var(--gold)}
+        .hist-win.neg{color:rgba(255,255,255,.2)}
+
+        /* Particles */
+        .particle{position:fixed;border-radius:50%;pointer-events:none;z-index:101}
+
+        /* Win overlay for big wins */
+        .big-win{
+            position:fixed;inset:0;background:rgba(6,6,18,.9);
+            backdrop-filter:blur(20px);display:none;align-items:center;
+            justify-content:center;z-index:100;
+        }
+        .big-win.show{display:flex}
+        .big-win-content{text-align:center;animation:bwIn .6s cubic-bezier(.4,0,.2,1)}
+        @keyframes bwIn{from{transform:scale(.5) translateY(30px);opacity:0}to{transform:scale(1);opacity:1}}
+        .bw-emoji{font-size:4rem;margin-bottom:12px}
+        .bw-title{
+            font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:900;
+            letter-spacing:4px;background:linear-gradient(135deg,var(--gold),#ff8c00);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+            text-transform:uppercase;
+        }
+        .bw-amount{font-family:'Orbitron',sans-serif;font-size:2.5rem;font-weight:900;color:var(--gold);margin:14px 0;text-shadow:0 0 20px rgba(255,215,0,.4)}
+        .bw-close{
+            font-family:'Orbitron',sans-serif;font-size:.65rem;letter-spacing:3px;
+            text-transform:uppercase;padding:12px 32px;border:1.5px solid var(--gold);
+            background:transparent;color:var(--gold);border-radius:100px;cursor:pointer;transition:all .3s;
+        }
+        .bw-close:hover{background:rgba(255,215,0,.1);box-shadow:0 0 20px rgba(255,215,0,.3)}
+
+        .history::-webkit-scrollbar{width:4px}
+        .history::-webkit-scrollbar-track{background:transparent}
+        .history::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
+
+        @media(max-width:500px){
+            h1{font-size:1.4rem;letter-spacing:2px}
+            .die-container{width:50px;height:50px}
+            .die-face{width:50px;height:50px;padding:6px}
+            .face-1{transform:rotateY(0deg) translateZ(25px)}
+            .face-2{transform:rotateY(180deg) translateZ(25px)}
+            .face-3{transform:rotateY(-90deg) translateZ(25px)}
+            .face-4{transform:rotateY(90deg) translateZ(25px)}
+            .face-5{transform:rotateX(90deg) translateZ(25px)}
+            .face-6{transform:rotateX(-90deg) translateZ(25px)}
+            .dot{width:8px;height:8px}
+            .dome{width:130px;height:100px}
+            .roll-btn{padding:12px 32px;font-size:.65rem}
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Neon Sic Bo</h1>
+    <div class="subtitle">霓虹骰盅</div>
+
+    <div class="credits-bar">
+        <div><div class="cred-label">籌碼</div><div class="cred-value" id="credits">1,000</div></div>
+        <div class="win-msg" id="winMsg">+0</div>
+        <div><div class="cred-label">總注</div><div class="cred-value" id="totalBetDisplay" style="color:var(--cyan);font-size:1.1rem">0</div></div>
+    </div>
+
+    <div class="dice-stage">
+        <div class="dome-area">
+            <div class="dome" id="dome"></div>
+            <div class="dice-row" id="diceRow">
+                <div class="die-container"><div class="die" id="die0"></div></div>
+                <div class="die-container"><div class="die" id="die1"></div></div>
+                <div class="die-container"><div class="die" id="die2"></div></div>
+            </div>
+        </div>
+        <div class="result-display" id="resultDisplay"></div>
+    </div>
+
+    <!-- Betting board -->
+    <div class="bet-board">
+        <div class="bet-cell" data-bet="big" onclick="placeBet('big')">
+            <div class="bet-cell-name">大 Big</div>
+            <div class="bet-cell-desc">11 — 17</div>
+            <div class="bet-cell-odds">×2</div>
+            <div class="bet-cell-amount" id="amt-big">0</div>
+        </div>
+        <div class="bet-cell" data-bet="small" onclick="placeBet('small')">
+            <div class="bet-cell-name">小 Small</div>
+            <div class="bet-cell-desc">4 — 10</div>
+            <div class="bet-cell-odds">×2</div>
+            <div class="bet-cell-amount" id="amt-small">0</div>
+        </div>
+        <div class="bet-cell" data-bet="odd" onclick="placeBet('odd')">
+            <div class="bet-cell-name">單 Odd</div>
+            <div class="bet-cell-desc">總和為單數</div>
+            <div class="bet-cell-odds">×2</div>
+            <div class="bet-cell-amount" id="amt-odd">0</div>
+        </div>
+        <div class="bet-cell" data-bet="even" onclick="placeBet('even')">
+            <div class="bet-cell-name">雙 Even</div>
+            <div class="bet-cell-desc">總和為雙數</div>
+            <div class="bet-cell-odds">×2</div>
+            <div class="bet-cell-amount" id="amt-even">0</div>
+        </div>
+        <div class="bet-cell full-width" data-bet="anyTriple" onclick="placeBet('anyTriple')">
+            <div class="bet-cell-name">任意圍骰</div>
+            <div class="bet-cell-desc">三顆相同（任意）</div>
+            <div class="bet-cell-odds">×30</div>
+            <div class="bet-cell-amount" id="amt-anyTriple">0</div>
+        </div>
+    </div>
+
+    <div class="triples-row">
+        <div class="triple-cell" data-bet="t1" onclick="placeBet('t1')"><div class="triple-cell-label">⚀⚀⚀</div><div class="triple-cell-odds">×180</div></div>
+        <div class="triple-cell" data-bet="t2" onclick="placeBet('t2')"><div class="triple-cell-label">⚁⚁⚁</div><div class="triple-cell-odds">×180</div></div>
+        <div class="triple-cell" data-bet="t3" onclick="placeBet('t3')"><div class="triple-cell-label">⚂⚂⚂</div><div class="triple-cell-odds">×180</div></div>
+        <div class="triple-cell" data-bet="t4" onclick="placeBet('t4')"><div class="triple-cell-label">⚃⚃⚃</div><div class="triple-cell-odds">×180</div></div>
+        <div class="triple-cell" data-bet="t5" onclick="placeBet('t5')"><div class="triple-cell-label">⚄⚄⚄</div><div class="triple-cell-odds">×180</div></div>
+        <div class="triple-cell" data-bet="t6" onclick="placeBet('t6')"><div class="triple-cell-label">⚅⚅⚅</div><div class="triple-cell-odds">×180</div></div>
+    </div>
+
+    <div class="controls">
+        <div class="bet-row">
+            <span class="bet-label">籌碼</span>
+            <div class="bet-buttons">
+                <button class="chip-btn" data-chip="10">10</button>
+                <button class="chip-btn active" data-chip="50">50</button>
+                <button class="chip-btn" data-chip="100">100</button>
+                <button class="chip-btn" data-chip="500">500</button>
+            </div>
+        </div>
+        <div class="action-row">
+            <button class="roll-btn" id="rollBtn" onclick="roll()">搖骰</button>
+            <button class="clear-btn" onclick="clearBets()">清除</button>
+        </div>
+    </div>
+
+    <div class="history" id="history">
+        <div class="history-title">歷史紀錄</div>
+        <div id="historyList"></div>
+    </div>
+</div>
+
+<div class="big-win" id="bigWin">
+    <div class="big-win-content">
+        <div class="bw-emoji">🎲</div>
+        <div class="bw-title" id="bwTitle">大贏</div>
+        <div class="bw-amount" id="bwAmount">+0</div>
+        <button class="bw-close" onclick="closeBigWin()">繼續</button>
+    </div>
+</div>
+
+<script>
+// Audio
+let audioCtx;
+function ac(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx}
+function tone(f,d,t='square',v=.06){const c=ac(),o=c.createOscillator(),g=c.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+d);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+d)}
+function sndRoll(){for(let i=0;i<8;i++)setTimeout(()=>tone(300+Math.random()*600,.05,'square',.03),i*60)}
+function sndStop(){tone(500,.12,'sine',.08)}
+function sndWin(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.2,'sine',.1),i*100))}
+function sndBigWin(){[523,659,784,1047,1319,1568].forEach((f,i)=>setTimeout(()=>tone(f,.3,'sine',.12),i*100))}
+function sndPlace(){tone(1200,.04,'sine',.04)}
+function sndLose(){tone(180,.15,'triangle',.05)}
+
+// State
+let credits=1000, chipSize=50, rolling=false;
+let bets={}; // {type: amount}
+let historyLog=[];
+
+// Dice face rotations
+const FACE_ROT={1:[0,0],2:[0,180],3:[0,90],4:[0,-90],5:[-90,0],6:[90,0]};
+
+function buildFace(n){
+    const f=document.createElement('div');
+    f.className=`die-face face-${n}`;
+    const inner=document.createElement('div');
+    inner.className=`dots-${n}`;
+    inner.style.cssText='width:100%;height:100%;display:grid;place-items:center;'+
+        (n===1?'grid-template:1fr/1fr':
+         n===2?'grid-template:1fr 1fr/1fr':
+         n===3?'grid-template:1fr 1fr 1fr/1fr':
+         n===4?'grid-template:1fr 1fr/1fr 1fr':
+         n===5?'grid-template:1fr 1fr 1fr/1fr 1fr':
+         'grid-template:1fr 1fr 1fr/1fr 1fr');
+    for(let i=0;i<n;i++){const d=document.createElement('div');d.className='dot';inner.appendChild(d)}
+    f.appendChild(inner);
+    return f;
+}
+
+function initDice(){
+    for(let i=0;i<3;i++){
+        const die=document.getElementById('die'+i);
+        die.innerHTML='';
+        for(let n=1;n<=6;n++)die.appendChild(buildFace(n));
+        const v=Math.ceil(Math.random()*6);
+        const[rx,ry]=FACE_ROT[v];
+        die.style.transform=`rotateX(${rx}deg) rotateY(${ry}deg)`;
+    }
+}
+
+// Place bet
+function placeBet(type){
+    if(rolling)return;
+    if(credits<chipSize){shakeEl('.credits-bar');return}
+    if(!bets[type])bets[type]=0;
+    bets[type]+=chipSize;
+    credits-=chipSize;
+    updateUI();
+    sndPlace();
+    // Highlight
+    const cells=document.querySelectorAll(`[data-bet="${type}"]`);
+    cells.forEach(c=>c.classList.add('selected'));
+    const amtEl=document.getElementById('amt-'+type);
+    if(amtEl)amtEl.textContent=bets[type];
+}
+
+function clearBets(){
+    if(rolling)return;
+    Object.values(bets).forEach(v=>credits+=v);
+    bets={};
+    updateUI();
+    document.querySelectorAll('.bet-cell,.triple-cell').forEach(c=>{
+        c.classList.remove('selected','win-cell');
+    });
+    document.querySelectorAll('[id^="amt-"]').forEach(e=>e.textContent='0');
+    document.getElementById('resultDisplay').innerHTML='';
+}
+
+function getTotalBet(){return Object.values(bets).reduce((a,b)=>a+b,0)}
+
+function updateUI(){
+    document.getElementById('credits').textContent=credits.toLocaleString();
+    document.getElementById('totalBetDisplay').textContent=getTotalBet().toLocaleString();
+}
+
+// Roll
+function roll(){
+    if(rolling)return;
+    if(getTotalBet()===0){shakeEl('.roll-btn');return}
+    rolling=true;
+    const btn=document.getElementById('rollBtn');
+    btn.disabled=true;btn.textContent='搖骰中...';
+    document.getElementById('winMsg').classList.remove('show');
+    document.querySelectorAll('.bet-cell,.triple-cell').forEach(c=>c.classList.remove('win-cell'));
+
+    // Lower dome
+    document.getElementById('dome').classList.remove('lifted');
+
+    sndRoll();
+
+    // Determine results
+    const results=[rand6(),rand6(),rand6()];
+    const total=results[0]+results[1]+results[2];
+
+    // Animate dice
+    for(let i=0;i<3;i++){
+        const die=document.getElementById('die'+i);
+        const[rx,ry]=FACE_ROT[results[i]];
+        // Add random full rotations
+        const extraX=(2+Math.floor(Math.random()*3))*360;
+        const extraY=(2+Math.floor(Math.random()*3))*360;
+        die.style.setProperty('--rx',(rx+extraX)+'deg');
+        die.style.setProperty('--ry',(ry+extraY)+'deg');
+        die.classList.remove('rolling');
+        void die.offsetWidth;
+        die.classList.add('rolling');
+    }
+
+    // Lift dome after dice settle
+    setTimeout(()=>{
+        document.getElementById('dome').classList.add('lifted');
+        sndStop();
+    },1600);
+
+    // Show results
+    setTimeout(()=>{
+        // Set final transform
+        for(let i=0;i<3;i++){
+            const die=document.getElementById('die'+i);
+            const[rx,ry]=FACE_ROT[results[i]];
+            die.classList.remove('rolling');
+            die.style.transform=`rotateX(${rx}deg) rotateY(${ry}deg)`;
+        }
+
+        const diceStr=results.map(d=>['⚀','⚁','⚂','⚃','⚄','⚅'][d-1]).join(' ');
+        document.getElementById('resultDisplay').innerHTML=
+            `<span>${diceStr}</span> <span class="result-total">= ${total}</span>`;
+
+        evaluate(results,total);
+        rolling=false;
+        btn.disabled=false;btn.textContent='搖骰';
+    },2200);
+}
+
+function rand6(){return Math.floor(Math.random()*6)+1}
+
+function evaluate(results,total){
+    const[a,b,c]=results;
+    const isTriple=a===b&&b===c;
+    const isOdd=total%2===1;
+    let totalWin=0;
+
+    const wins={};
+
+    // Big/Small (triples lose)
+    if(!isTriple){
+        if(total>=11&&total<=17&&bets.big) wins.big=bets.big*2;
+        if(total>=4&&total<=10&&bets.small) wins.small=bets.small*2;
+    }
+    if(isOdd&&bets.odd&&!isTriple) wins.odd=bets.odd*2;
+    if(!isOdd&&bets.even&&!isTriple) wins.even=bets.even*2;
+    if(isTriple&&bets.anyTriple) wins.anyTriple=bets.anyTriple*30;
+
+    // Specific triples
+    for(let n=1;n<=6;n++){
+        const key='t'+n;
+        if(isTriple&&a===n&&bets[key]) wins[key]=bets[key]*180;
+    }
+
+    Object.entries(wins).forEach(([type,amount])=>{
+        totalWin+=amount;
+        const cells=document.querySelectorAll(`[data-bet="${type}"]`);
+        cells.forEach(c=>c.classList.add('win-cell'));
+    });
+
+    credits+=totalWin;
+    updateUI();
+
+    // History
+    const diceStr=results.map(d=>['⚀','⚁','⚂','⚃','⚄','⚅'][d-1]).join('');
+    const betTotal=getTotalBet();
+    historyLog.unshift({dice:diceStr,total,win:totalWin});
+    if(historyLog.length>10)historyLog.pop();
+    renderHistory();
+
+    if(totalWin>0){
+        const wm=document.getElementById('winMsg');
+        wm.textContent='+'+totalWin.toLocaleString();
+        wm.style.color=totalWin>=1000?'var(--gold)':'var(--cyan)';
+        wm.classList.add('show');
+
+        if(totalWin>=bets[Object.keys(bets)[0]]*20){
+            showBigWin(totalWin,isTriple);
+            sndBigWin();
+            spawnParticles(40);
+        } else {
+            sndWin();
+            spawnParticles(12);
+        }
+    } else {
+        sndLose();
+    }
+
+    // Reset bets
+    bets={};
+    document.querySelectorAll('.bet-cell,.triple-cell').forEach(c=>c.classList.remove('selected'));
+    document.querySelectorAll('[id^="amt-"]').forEach(e=>e.textContent='0');
+    document.getElementById('totalBetDisplay').textContent='0';
+}
+
+function showBigWin(amount,isTriple){
+    document.getElementById('bwTitle').textContent=isTriple?'🔥 圍骰 🔥':'大贏！';
+    document.querySelector('.bw-emoji').textContent=isTriple?'💰':'🎲';
+    document.getElementById('bwAmount').textContent='+'+amount.toLocaleString();
+    document.getElementById('bigWin').classList.add('show');
+}
+function closeBigWin(){document.getElementById('bigWin').classList.remove('show')}
+
+function renderHistory(){
+    const el=document.getElementById('history');
+    const list=document.getElementById('historyList');
+    el.classList.toggle('show',historyLog.length>0);
+    list.innerHTML=historyLog.map(h=>`
+        <div class="history-entry">
+            <span class="hist-dice">${h.dice} = ${h.total}</span>
+            <span class="hist-win ${h.win>0?'pos':'neg'}">${h.win>0?'+'+h.win.toLocaleString():'—'}</span>
+        </div>`).join('');
+}
+
+function spawnParticles(n){
+    const colors=['#00f0ff','#ff2d95','#b026ff','#ffd700','#fff'];
+    for(let i=0;i<n;i++){
+        setTimeout(()=>{
+            const p=document.createElement('div');p.className='particle';
+            p.style.left=(20+Math.random()*60)+'vw';
+            p.style.top=(20+Math.random()*40)+'vh';
+            p.style.width=p.style.height=(3+Math.random()*5)+'px';
+            p.style.background=colors[Math.floor(Math.random()*colors.length)];
+            p.style.transition=`all ${1+Math.random()}s ease-out`;
+            document.body.appendChild(p);
+            requestAnimationFrame(()=>{
+                p.style.transform=`translate(${(Math.random()-.5)*200}px,${(Math.random()-.5)*200}px)`;
+                p.style.opacity='0';
+            });
+            setTimeout(()=>p.remove(),2000);
+        },i*40);
+    }
+}
+
+function shakeEl(sel){
+    const el=document.querySelector(sel);
+    el.style.animation='none';void el.offsetHeight;
+    el.style.animation='shk .4s ease-in-out';
+    tone(150,.15,'sawtooth',.05);
+}
+const sty=document.createElement('style');
+sty.textContent='@keyframes shk{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}';
+document.head.appendChild(sty);
+
+// Chip buttons
+document.querySelectorAll('.chip-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+        if(rolling)return;
+        document.querySelectorAll('.chip-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        chipSize=parseInt(btn.dataset.chip);
+        tone(1000,.04,'sine',.04);
+    });
+});
+
+// Keyboard
+document.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();roll()}});
+
+initDice();
+</script>
+</body>
+</html>
