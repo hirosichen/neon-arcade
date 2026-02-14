@@ -66,6 +66,10 @@ canvas#particles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-even
 <h1>霓虹暗棋</h1>
 <div class="subtitle">NEON DARK CHESS</div>
 <div class="info-bar glass">
+  <div class="mode-btns" style="display:flex;gap:6px">
+    <button class="btn mode-btn active" id="modeAI" onclick="setMode('ai')" style="font-size:0.7rem;padding:6px 14px">🤖 電腦對戰</button>
+    <button class="btn mode-btn" id="mode2P" onclick="setMode('2p')" style="font-size:0.7rem;padding:6px 14px">👥 雙人對戰</button>
+  </div>
   <div class="turn-indicator undecided" id="turnIndicator">翻棋決定顏色</div>
   <button class="btn" onclick="restartGame()">重新開始</button>
 </div>
@@ -143,6 +147,17 @@ let selectedCell=null;
 let capturedRed=[];
 let capturedBlack=[];
 let gameOver=false;
+let gameMode='ai';// 'ai' or '2p'
+let aiSide=null;// which side AI plays
+
+function setMode(mode){
+  gameMode=mode;
+  document.getElementById('modeAI').classList.toggle('active',mode==='ai');
+  document.getElementById('mode2P').classList.toggle('active',mode==='2p');
+  document.getElementById('modeAI').style.borderColor=mode==='ai'?'var(--cyan)':'rgba(255,255,255,0.2)';
+  document.getElementById('mode2P').style.borderColor=mode==='2p'?'var(--cyan)':'rgba(255,255,255,0.2)';
+  restartGame();
+}
 
 function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]}return arr}
 
@@ -345,7 +360,9 @@ function onCellClick(r,c){
       selectedCell=null;
       switchTurn();
       render();
-      checkVictory();
+      if(!checkVictory()&&gameMode==='ai'&&currentTurn===aiSide&&!gameOver){
+        setTimeout(aiMove,600);
+      }
       return;
     }
     // Clicking another own piece? Select it instead
@@ -393,12 +410,19 @@ function doFlip(r,c){
     player1Side=cell.piece.side;
     player2Side=cell.piece.side==='red'?'black':'red';
     currentTurn=player2Side;// after flip, other player's turn
-    setStatus('玩家一是'+(player1Side==='red'?'紅方':'黑方')+'！');
+    if(gameMode==='ai'){
+      aiSide=player2Side;
+      setStatus('你是'+(player1Side==='red'?'紅方':'黑方')+'！電腦是'+(aiSide==='red'?'紅方':'黑方'));
+    }else{
+      setStatus('玩家一是'+(player1Side==='red'?'紅方':'黑方')+'！');
+    }
   }else{
     switchTurn();
   }
   render();
-  checkVictory();
+  if(!checkVictory()&&gameMode==='ai'&&currentTurn===aiSide&&!gameOver){
+    setTimeout(aiMove,600);
+  }
 }
 
 // --- Victory & Particles ---
@@ -442,12 +466,85 @@ function startParticles(winner){
   animate();
 }
 
+// --- AI Logic ---
+function aiMove(){
+  if(gameOver||currentTurn!==aiSide)return;
+
+  // Collect all possible actions
+  const actions=[];
+
+  for(let r=0;r<8;r++){
+    for(let c=0;c<4;c++){
+      const cell=board[r][c];
+      if(!cell)continue;
+
+      // Flip facedown pieces
+      if(!cell.faceUp){
+        actions.push({type:'flip',r,c,score:1+Math.random()});
+        continue;
+      }
+
+      // Own pieces: find moves
+      if(cell.piece.side!==aiSide)continue;
+      const moves=getValidMoves(r,c);
+      for(const m of moves){
+        if(m.type==='capture'){
+          const target=board[m.r][m.c].piece;
+          // Prioritize captures, especially high-value targets
+          let score=10+target.rank*3+Math.random()*2;
+          // Avoid trading high-value pieces for low-value
+          if(cell.piece.rank>target.rank+2)score-=3;
+          // Big bonus for capturing general
+          if(target.rank===RANKS.GENERAL)score=50;
+          actions.push({type:'capture',fr:r,fc:c,tr:m.r,tc:m.c,score});
+        }else{
+          // Move: slight preference for moving toward enemy pieces
+          let score=2+Math.random()*2;
+          // Prefer moving soldiers toward generals
+          if(cell.piece.rank===RANKS.SOLDIER)score+=1;
+          actions.push({type:'move',fr:r,fc:c,tr:m.r,tc:m.c,score});
+        }
+      }
+    }
+  }
+
+  if(actions.length===0)return;
+
+  // Sort by score descending, pick best (with slight randomness)
+  actions.sort((a,b)=>b.score-a.score);
+
+  // Pick from top 3 for variety
+  const top=actions.slice(0,Math.min(3,actions.length));
+  const pick=top[Math.floor(Math.random()*top.length)];
+
+  if(pick.type==='flip'){
+    doFlip(pick.r,pick.c);
+  }else if(pick.type==='capture'){
+    const captured=board[pick.tr][pick.tc].piece;
+    if(captured.side==='red')capturedRed.push(captured);
+    else capturedBlack.push(captured);
+    board[pick.tr][pick.tc]={piece:board[pick.fr][pick.fc].piece,faceUp:true,_anim:'capture-anim'};
+    board[pick.fr][pick.fc]=null;
+    sfxCapture();
+    switchTurn();
+    render();
+    checkVictory();
+  }else{
+    board[pick.tr][pick.tc]={piece:board[pick.fr][pick.fc].piece,faceUp:true,_anim:'move-anim'};
+    board[pick.fr][pick.fc]=null;
+    sfxMove();
+    switchTurn();
+    render();
+    checkVictory();
+  }
+}
+
 function restartGame(){
   document.getElementById('victoryOverlay').classList.remove('show');
   if(particleAnim){cancelAnimationFrame(particleAnim);particleAnim=null;
     const c=document.getElementById('particles');c.getContext('2d').clearRect(0,0,c.width,c.height)}
-  selectedCell=null;
-  setStatus('');
+  selectedCell=null;aiSide=null;
+  setStatus(gameMode==='ai'?'翻開第一顆棋子決定你的顏色':'翻棋決定顏色');
   initBoard();render();
 }
 
