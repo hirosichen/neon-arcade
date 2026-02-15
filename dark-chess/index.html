@@ -32,16 +32,16 @@ h1{font-family:'Orbitron',sans-serif;font-size:clamp(1.5rem,4vw,2.5rem);text-ali
 .captured-piece.red{background:rgba(255,45,85,0.2);border:1px solid var(--magenta);color:var(--magenta)}
 .captured-piece.blue{background:rgba(0,240,255,0.2);border:1px solid var(--cyan);color:var(--cyan)}
 @keyframes capturePop{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
-.board{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:12px;border-radius:16px;width:min(95vw,340px)}
-.cell{width:clamp(55px,18vw,75px);height:clamp(55px,18vw,75px);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all 0.2s;border:2px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03)}
+.board{display:grid;grid-template-columns:repeat(8,1fr);gap:clamp(2px,0.8vw,6px);padding:clamp(6px,1.5vw,14px);border-radius:16px;width:min(96vw,560px)}
+.cell{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all 0.2s;border:2px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);min-width:0}
 .cell:hover{border-color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.06)}
 .cell.selected{border-color:var(--gold)!important;box-shadow:0 0 20px rgba(255,215,0,0.5);animation:selectedPulse 1.5s infinite}
 @keyframes selectedPulse{0%,100%{box-shadow:0 0 15px rgba(255,215,0,0.4)}50%{box-shadow:0 0 30px rgba(255,215,0,0.7)}}
 .cell.valid-move{border-color:var(--gold);box-shadow:0 0 12px rgba(255,215,0,0.3)}
 .cell.valid-move::after{content:'';position:absolute;width:12px;height:12px;border-radius:50%;background:rgba(255,215,0,0.4);animation:moveDot 1s infinite}
 @keyframes moveDot{0%,100%{opacity:0.4;transform:scale(1)}50%{opacity:0.8;transform:scale(1.3)}}
-.piece{width:100%;height:100%;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:clamp(1.3rem,4vw,1.8rem);transition:all 0.3s;position:relative;user-select:none}
-.piece.facedown{background:linear-gradient(135deg,rgba(176,38,255,0.3),rgba(176,38,255,0.15));border:2px solid rgba(176,38,255,0.5);color:rgba(176,38,255,0.7);font-size:clamp(1.1rem,3.5vw,1.5rem);text-shadow:0 0 10px rgba(176,38,255,0.5);box-shadow:inset 0 0 20px rgba(176,38,255,0.1)}
+.piece{width:100%;height:100%;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:clamp(1rem,3.2vw,2.4rem);transition:all 0.3s;position:relative;user-select:none}
+.piece.facedown{background:linear-gradient(135deg,rgba(176,38,255,0.3),rgba(176,38,255,0.15));border:2px solid rgba(176,38,255,0.5);color:rgba(176,38,255,0.7);font-size:clamp(0.7rem,2.5vw,1.5rem);text-shadow:0 0 10px rgba(176,38,255,0.5);box-shadow:inset 0 0 20px rgba(176,38,255,0.1)}
 .piece.facedown::before{content:'';position:absolute;width:60%;height:60%;border:2px solid rgba(176,38,255,0.25);border-radius:4px;transform:rotate(45deg)}
 .piece.red{background:linear-gradient(135deg,rgba(255,45,85,0.25),rgba(255,45,149,0.15));border:2px solid rgba(255,45,149,0.6);color:var(--magenta);text-shadow:0 0 12px rgba(255,45,149,0.6);box-shadow:inset 0 0 15px rgba(255,45,149,0.1)}
 .piece.blue{background:linear-gradient(135deg,rgba(0,240,255,0.25),rgba(0,240,255,0.1));border:2px solid rgba(0,240,255,0.6);color:var(--cyan);text-shadow:0 0 12px rgba(0,240,255,0.6);box-shadow:inset 0 0 15px rgba(0,240,255,0.1)}
@@ -60,6 +60,7 @@ h1{font-family:'Orbitron',sans-serif;font-size:clamp(1.5rem,4vw,2.5rem);text-ali
 .victory-sub{font-size:1.2rem;margin-bottom:30px;color:var(--violet)}
 canvas#particles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99}
 .status-msg{font-size:0.85rem;color:var(--violet);min-height:1.2em;text-align:center;position:relative;z-index:1;margin-bottom:5px}
+@media(max-width:480px){.captured-area{gap:8px}.captured-box{min-width:0;padding:6px 8px}.captured-box h3{font-size:0.55rem;letter-spacing:1px;white-space:nowrap}.captured-piece{width:22px;height:22px;font-size:0.6rem}}
 </style>
 </head>
 <body>
@@ -164,10 +165,10 @@ function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.ra
 function initBoard(){
   const all=shuffle([...RED_PIECES,...BLACK_PIECES].map(p=>({...p})));
   board=[];
-  for(let r=0;r<8;r++){
+  for(let r=0;r<4;r++){
     board[r]=[];
-    for(let c=0;c<4;c++){
-      board[r][c]={piece:all[r*4+c],faceUp:false};
+    for(let c=0;c<8;c++){
+      board[r][c]={piece:all[r*8+c],faceUp:false};
     }
   }
   currentTurn='none';player1Side=null;player2Side=null;
@@ -210,7 +211,7 @@ function getValidMoves(r,c){
   const dirs=[[-1,0],[1,0],[0,-1],[0,1]];
   for(const[dr,dc]of dirs){
     const nr=r+dr,nc=c+dc;
-    if(nr<0||nr>=8||nc<0||nc>=4)continue;
+    if(nr<0||nr>=4||nc<0||nc>=8)continue;
     const target=board[nr][nc];
     if(!target){moves.push({r:nr,c:nc,type:'move'});continue}
     if(!target.faceUp)continue;// can't move onto facedown
@@ -222,7 +223,7 @@ function getValidMoves(r,c){
   if(p.rank===RANKS.CANNON){
     for(const[dr,dc]of dirs){
       let nr=r+dr,nc=c+dc,jumped=0;
-      while(nr>=0&&nr<8&&nc>=0&&nc<4){
+      while(nr>=0&&nr<4&&nc>=0&&nc<8){
         const t=board[nr][nc];
         if(t){
           jumped++;
@@ -247,7 +248,7 @@ function switchTurn(){
 
 function checkVictory(){
   let redAlive=false,blackAlive=false;
-  for(let r=0;r<8;r++)for(let c=0;c<4;c++){
+  for(let r=0;r<4;r++)for(let c=0;c<8;c++){
     const cell=board[r][c];
     if(cell){
       if(cell.piece.side==='red')redAlive=true;
@@ -258,7 +259,7 @@ function checkVictory(){
   if(!blackAlive){showVictory('red');return true}
   // Check if current player has any possible action
   let hasAction=false;
-  for(let r=0;r<8;r++)for(let c=0;c<4;c++){
+  for(let r=0;r<4;r++)for(let c=0;c<8;c++){
     const cell=board[r][c];
     if(!cell)continue;
     if(!cell.faceUp){hasAction=true;break}
@@ -274,8 +275,8 @@ function checkVictory(){
 function render(){
   const boardEl=document.getElementById('board');
   boardEl.innerHTML='';
-  for(let r=0;r<8;r++){
-    for(let c=0;c<4;c++){
+  for(let r=0;r<4;r++){
+    for(let c=0;c<8;c++){
       const cellEl=document.createElement('div');
       cellEl.className='cell';
       cellEl.dataset.r=r;cellEl.dataset.c=c;
@@ -336,6 +337,8 @@ function setStatus(msg){document.getElementById('statusMsg').textContent=msg}
 
 function onCellClick(r,c){
   if(gameOver)return;
+  // Block clicks during AI turn
+  if(gameMode==='ai'&&aiSide&&currentTurn===aiSide)return;
   const cell=board[r][c];
   
   // If a piece is selected, try action on target
@@ -473,8 +476,8 @@ function aiMove(){
   // Collect all possible actions
   const actions=[];
 
-  for(let r=0;r<8;r++){
-    for(let c=0;c<4;c++){
+  for(let r=0;r<4;r++){
+    for(let c=0;c<8;c++){
       const cell=board[r][c];
       if(!cell)continue;
 
