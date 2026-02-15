@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>99 撲克牌 — Ninety-Nine Card Game</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --felt:#1a6b3c;--felt-dark:#145a30;--gold:#d4a926;--card-white:#f8f6f0;
+  --red:#c0392b;--black:#2c3e50;--shadow:rgba(0,0,0,0.4)
+}
+@keyframes dealIn{from{opacity:0;transform:translateY(-40px) rotate(-5deg)}to{opacity:1;transform:translateY(0) rotate(0)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  background:radial-gradient(ellipse at center,var(--felt) 0%,var(--felt-dark) 70%,#0d3d1f 100%);
+  color:#fff;overflow-x:hidden;
+}
+h1{font-size:1.6rem;margin:1rem 0 0.3rem;text-shadow:0 2px 8px rgba(0,0,0,0.5);letter-spacing:2px}
+.subtitle{font-size:0.85rem;color:rgba(255,255,255,0.6);margin-bottom:0.8rem}
+
+/* Scoreboard */
+#scoreboard{
+  display:flex;gap:1.5rem;margin-bottom:0.8rem;
+  background:rgba(0,0,0,0.3);padding:0.5rem 1.5rem;border-radius:20px;
+  font-size:0.9rem;
+}
+#scoreboard span{font-weight:700}
+
+/* Total counter */
+#total-display{
+  font-size:3rem;font-weight:900;
+  background:rgba(0,0,0,0.4);border:3px solid var(--gold);
+  border-radius:16px;padding:0.3rem 1.5rem;margin:0.5rem 0;
+  min-width:140px;text-align:center;
+  text-shadow:0 0 20px rgba(212,169,38,0.5);
+  transition:all 0.3s;
+}
+#total-display.danger{border-color:#c0392b;color:#ff6b6b;text-shadow:0 0 20px rgba(192,57,43,0.6)}
+#total-display.warning{border-color:#e67e22;color:#f39c12}
+
+/* Status */
+#status{
+  font-size:1rem;margin:0.5rem 0;min-height:1.5rem;
+  text-shadow:0 1px 4px rgba(0,0,0,0.5);
+  transition:all 0.3s;
+}
+
+/* Opponent hand (face down) */
+#opponent-area{display:flex;gap:6px;margin:0.5rem 0;perspective:600px}
+.card-back{
+  width:45px;height:65px;border-radius:6px;
+  background:linear-gradient(135deg,#1a3a8a,#2a4aaa);
+  border:2px solid #4a6ada;
+  box-shadow:0 2px 8px var(--shadow);
+  position:relative;overflow:hidden;
+}
+.card-back::after{
+  content:'✦';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;color:rgba(255,255,255,0.3);
+}
+
+/* Play area */
+#play-area{
+  display:flex;gap:10px;align-items:center;justify-content:center;
+  min-height:100px;margin:0.5rem 0;
+}
+.played-card{
+  width:65px;height:95px;border-radius:8px;
+  background:var(--card-white);
+  box-shadow:0 4px 15px var(--shadow);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-weight:700;position:relative;
+  animation:dealIn 0.4s ease;
+}
+.played-card .suit{font-size:1.5rem}
+.played-card .rank{font-size:1.1rem}
+.played-card.red{color:var(--red)}
+.played-card.black{color:var(--black)}
+.played-card .effect{font-size:0.6rem;color:#888;margin-top:2px}
+.played-card .arrow{
+  position:absolute;top:2px;right:4px;font-size:0.65rem;color:#999;
+}
+
+/* Player hand */
+#hand{
+  display:flex;gap:8px;flex-wrap:wrap;justify-content:center;
+  margin:0.8rem 0;max-width:95vw;
+}
+.card{
+  width:65px;height:95px;border-radius:8px;
+  background:var(--card-white);
+  box-shadow:0 3px 10px var(--shadow);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;
+  font-weight:700;position:relative;
+  animation:dealIn 0.4s ease backwards;
+  user-select:none;-webkit-user-select:none;
+}
+.card:hover{transform:translateY(-8px);box-shadow:0 8px 25px var(--shadow)}
+.card:active{transform:translateY(-4px) scale(0.97)}
+.card.red{color:var(--red)}
+.card.black{color:var(--black)}
+.card .suit{font-size:1.5rem}
+.card .rank{font-size:1.1rem}
+.card .effect{font-size:0.55rem;color:#999;margin-top:2px}
+.card.disabled{opacity:0.4;pointer-events:none}
+
+/* Buttons */
+.btn-row{display:flex;gap:10px;margin:0.5rem 0}
+button{
+  padding:0.6rem 1.5rem;border:none;border-radius:25px;font-size:0.95rem;font-weight:700;
+  cursor:pointer;transition:all 0.2s;
+}
+#pass-btn{background:linear-gradient(135deg,#e67e22,#d35400);color:#fff}
+#pass-btn:hover{transform:scale(1.05);box-shadow:0 4px 15px rgba(230,126,34,0.4)}
+#pass-btn:disabled{opacity:0.4;cursor:default;transform:none;box-shadow:none}
+#new-game-btn{background:linear-gradient(135deg,var(--gold),#b8860b);color:#fff}
+#new-game-btn:hover{transform:scale(1.05);box-shadow:0 4px 15px rgba(212,169,38,0.4)}
+
+/* Rules toggle */
+#rules-toggle{
+  margin-top:0.5rem;font-size:0.8rem;color:rgba(255,255,255,0.5);
+  cursor:pointer;text-decoration:underline;
+}
+#rules{
+  display:none;max-width:380px;margin:0.5rem auto;padding:1rem;
+  background:rgba(0,0,0,0.4);border-radius:12px;font-size:0.8rem;
+  line-height:1.6;color:rgba(255,255,255,0.8);text-align:left;
+}
+#rules h3{margin-bottom:0.5rem;color:var(--gold)}
+#rules.show{display:block;animation:slideUp 0.3s ease}
+
+/* Game over overlay */
+#overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);
+  z-index:100;align-items:center;justify-content:center;
+}
+#overlay.show{display:flex}
+#overlay-box{
+  background:linear-gradient(135deg,#1a3a2a,#0d2818);
+  border:2px solid var(--gold);border-radius:20px;
+  padding:2.5rem;text-align:center;animation:slideUp 0.4s ease;
+}
+#overlay-box h2{font-size:2rem;margin-bottom:0.5rem}
+#overlay-box p{color:rgba(255,255,255,0.7);margin-bottom:1.5rem}
+
+/* Responsive */
+@media(max-width:400px){
+  .card,.played-card{width:55px;height:80px}
+  .card .suit,.played-card .suit{font-size:1.2rem}
+  .card .rank,.played-card .rank{font-size:0.95rem}
+  #total-display{font-size:2.5rem;padding:0.2rem 1rem}
+}
+</style>
+</head>
+<body>
+<h1>🃏 99 撲克牌</h1>
+<p class="subtitle">經典加法紙牌遊戲 — 別超過 99！</p>
+
+<div id="scoreboard">
+  <div>你：<span id="p-score">0</span> 勝</div>
+  <div>電腦：<span id="c-score">0</span> 勝</div>
+</div>
+
+<div id="total-display">0</div>
+<div id="status">你的回合</div>
+
+<div id="opponent-area"></div>
+<div id="play-area"></div>
+<div id="hand"></div>
+
+<div class="btn-row">
+  <button id="new-game-btn" onclick="newGame()">🔄 新遊戲</button>
+</div>
+
+<div id="rules-toggle" onclick="toggleRules()">📜 遊戲規則</div>
+<div id="rules">
+  <h3>🃏 99 撲克牌規則</h3>
+  <b>目標：</b>出牌讓總數不超過 99，超過的人輸。<br><br>
+  <b>特殊牌：</b><br>
+  ♦ <b>A</b> — +1<br>
+  ♦ <b>2~9</b> — 加上對應數字<br>
+  ♦ <b>10</b> — +10 或 -10（自動選擇最佳）<br>
+  ♦ <b>J</b> — PASS，總數不變<br>
+  ♦ <b>Q</b> — +20<br>
+  ♦ <b>K</b> — 直接變成 99<br>
+  <br>
+  每人 5 張手牌，出一張補一張。<br>
+  讓總數超過 99 的人就輸了！
+</div>
+
+<div id="overlay">
+  <div id="overlay-box">
+    <h2 id="overlay-title"></h2>
+    <p id="overlay-msg"></p>
+    <button id="new-game-btn" onclick="newGame()" style="font-size:1.1rem;padding:0.8rem 2rem">🔄 再來一局</button>
+  </div>
+</div>
+
+<script>
+const SUITS = ['♠','♥','♦','♣'];
+const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const HAND_SIZE = 5;
+
+let deck, playerHand, cpuHand, total, currentTurn, pScore=0, cScore=0, gameOver;
+
+function isRed(suit){return suit==='♥'||suit==='♦'}
+
+function cardValue(rank, currentTotal){
+  if(rank==='A') return 1;
+  if(rank==='J') return 0; // pass
+  if(rank==='Q') return 20;
+  if(rank==='K') return 99 - currentTotal; // set to 99
+  if(rank==='10') return (currentTotal+10>99) ? -10 : 10;
+  return parseInt(rank);
+}
+
+function cardEffect(rank){
+  if(rank==='A') return '+1';
+  if(rank==='J') return 'PASS';
+  if(rank==='Q') return '+20';
+  if(rank==='K') return '=99';
+  if(rank==='10') return '±10';
+  return '+'+rank;
+}
+
+function makeDeck(){
+  let d=[];
+  for(let s of SUITS) for(let r of RANKS) d.push({suit:s,rank:r});
+  // double deck for longer games
+  for(let s of SUITS) for(let r of RANKS) d.push({suit:s,rank:r});
+  return shuffle(d);
+}
+
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){let j=Math.random()*i+1|0;[a[i],a[j]]=[a[j],a[i]]}
+  return a;
+}
+
+function drawCard(){
+  if(deck.length===0) deck=makeDeck(); // reshuffle
+  return deck.pop();
+}
+
+function newGame(){
+  deck=makeDeck();
+  playerHand=[];cpuHand=[];
+  for(let i=0;i<HAND_SIZE;i++){playerHand.push(drawCard());cpuHand.push(drawCard())}
+  total=0;currentTurn='player';gameOver=false;
+  document.getElementById('overlay').classList.remove('show');
+  render();
+}
+
+function render(){
+  // Total
+  const td=document.getElementById('total-display');
+  td.textContent=total;
+  td.className=total>=90?'danger':total>=75?'warning':'';
+
+  // Status
+  const st=document.getElementById('status');
+  st.textContent=gameOver?'遊戲結束':currentTurn==='player'?'🎯 你的回合':'🤖 電腦思考中...';
+
+  // Scores
+  document.getElementById('p-score').textContent=pScore;
+  document.getElementById('c-score').textContent=cScore;
+
+  // Opponent cards (face down)
+  const oa=document.getElementById('opponent-area');
+  oa.innerHTML='';
+  cpuHand.forEach(()=>{const d=document.createElement('div');d.className='card-back';oa.appendChild(d)});
+
+  // Player hand
+  const h=document.getElementById('hand');
+  h.innerHTML='';
+  playerHand.forEach((c,i)=>{
+    const d=document.createElement('div');
+    d.className='card'+(isRed(c.suit)?' red':' black');
+    if(currentTurn!=='player'||gameOver) d.classList.add('disabled');
+    const val=cardValue(c.rank,total);
+    if(currentTurn==='player'&&!gameOver&&total+val>99&&c.rank!=='K'&&c.rank!=='J'&&!(c.rank==='10'&&total-10<=99)){
+      d.classList.add('disabled');
+    }
+    d.style.animationDelay=(i*0.08)+'s';
+    d.innerHTML=`<span class="rank">${c.rank}</span><span class="suit">${c.suit}</span><span class="effect">${cardEffect(c.rank)}</span>`;
+    d.onclick=()=>playCard(i);
+    h.appendChild(d);
+  });
+}
+
+function canPlay(hand,t){
+  return hand.some(c=>{
+    if(c.rank==='K'||c.rank==='J') return true;
+    if(c.rank==='10') return t+10<=99||t-10<=99;
+    return t+cardValue(c.rank,t)<=99;
+  });
+}
+
+function showPlayed(card,who){
+  const pa=document.getElementById('play-area');
+  const d=document.createElement('div');
+  d.className='played-card'+(isRed(card.suit)?' red':' black');
+  d.innerHTML=`<span class="arrow">${who==='player'?'👤':'🤖'}</span><span class="rank">${card.rank}</span><span class="suit">${card.suit}</span><span class="effect">${cardEffect(card.rank)}</span>`;
+  pa.appendChild(d);
+  // keep only last 6
+  while(pa.children.length>6) pa.removeChild(pa.firstChild);
+}
+
+function playCard(idx){
+  if(currentTurn!=='player'||gameOver) return;
+  const card=playerHand[idx];
+  const val=cardValue(card.rank,total);
+  let newTotal = card.rank==='K'? 99 : total+val;
+  if(newTotal>99){
+    // check if 10 can go negative
+    if(card.rank==='10'&&total-10<=99) newTotal=total-10;
+    else return; // can't play
+  }
+  total=newTotal;
+  playerHand.splice(idx,1);
+  playerHand.push(drawCard());
+  showPlayed(card,'player');
+  currentTurn='cpu';
+  render();
+
+  if(!canPlay(cpuHand,total)){
+    endGame('player');return;
+  }
+  setTimeout(cpuTurn, 800+Math.random()*600);
+}
+
+function cpuTurn(){
+  if(gameOver) return;
+  // Simple AI: pick safest card
+  let bestIdx=0, bestScore=-Infinity;
+  cpuHand.forEach((c,i)=>{
+    let val=cardValue(c.rank,total);
+    let nt=c.rank==='K'?99:total+val;
+    if(c.rank==='10'&&nt>99) nt=total-10;
+    if(nt>99) return;
+    let score=0;
+    // prefer J (pass) when total is high
+    if(c.rank==='J') score=total>=80?100:20;
+    // prefer low value cards
+    else if(c.rank==='K') score=total>=90?-50:total<=50?5:-30;
+    else score=99-nt; // prefer keeping total low
+    // slight randomness
+    score+=Math.random()*5;
+    if(score>bestScore){bestScore=score;bestIdx=i}
+  });
+
+  const card=cpuHand[bestIdx];
+  let val=cardValue(card.rank,total);
+  let newTotal=card.rank==='K'?99:total+val;
+  if(card.rank==='10'&&newTotal>99) newTotal=total-10;
+  total=newTotal;
+  cpuHand.splice(bestIdx,1);
+  cpuHand.push(drawCard());
+  showPlayed(card,'cpu');
+  currentTurn='player';
+  render();
+
+  if(!canPlay(playerHand,total)){
+    endGame('cpu');
+  }
+}
+
+function endGame(winner){
+  gameOver=true;
+  if(winner==='player') pScore++; else cScore++;
+  render();
+  const ov=document.getElementById('overlay');
+  document.getElementById('overlay-title').textContent=winner==='player'?'🎉 你贏了！':'😵 你輸了！';
+  document.getElementById('overlay-msg').textContent=winner==='player'?'電腦超過 99 了！':'總數超過 99，下次加油！';
+  ov.classList.add('show');
+}
+
+function toggleRules(){
+  document.getElementById('rules').classList.toggle('show');
+}
+
+newGame();
+</script>
+</body>
+</html>
