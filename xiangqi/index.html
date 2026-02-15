@@ -52,7 +52,7 @@ body{
   border:3px solid #8d6e63;
   padding:20px;
 }
-canvas{display:block;cursor:pointer}
+canvas{display:block;cursor:pointer;max-width:100%}
 #buttons{margin-top:10px;display:flex;gap:10px}
 #buttons button{
   padding:8px 20px;font-size:1em;
@@ -134,16 +134,20 @@ const ctx=canvas.getContext('2d');
 let CW,CH,CELL,OX,OY,PIECE_R;
 
 function resize(){
-  const isMobile=window.innerWidth<600;
-  const maxW=Math.min(isMobile?window.innerWidth-20:window.innerWidth-140,460);
-  const maxH=window.innerHeight-120;
+  const vw=window.innerWidth||document.documentElement.clientWidth||360;
+  const vh=window.innerHeight||document.documentElement.clientHeight||640;
+  const isMobile=vw<600;
+  const maxW=Math.min(isMobile?vw-20:vw-140,460);
+  const maxH=vh-100;
   CELL=Math.floor(Math.min(maxW/8,maxH/9));
-  if(CELL<36)CELL=36;
-  OX=CELL*0.6;OY=CELL*0.6;
+  if(CELL<30)CELL=30;
+  OX=Math.round(CELL*0.6);OY=Math.round(CELL*0.6);
   CW=OX*2+CELL*8;
   CH=OY*2+CELL*9;
-  canvas.width=CW;canvas.height=CH;
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=CW*dpr;canvas.height=CH*dpr;
   canvas.style.width=CW+'px';canvas.style.height=CH+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
   PIECE_R=CELL*0.42;
   draw();
 }
@@ -629,7 +633,9 @@ function minimax(b,depth,alpha,beta,maximizing){
 }
 
 // ===== INIT =====
-newGame();resize();
+function init(){newGame();resize();}
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init)}else{init();}
+window.addEventListener('load',resize);
 </script>
 </body>
 </html>
